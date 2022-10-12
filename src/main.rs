@@ -34,8 +34,10 @@ fn pixel_to_point(
     upper_left: Complex<f64>,
     lower_right: Complex<f64>,
 ) -> Complex<f64> {
-    let percentage_across_width = pixel.0 as f64 / bounds.0 as f64;
-    let percentage_down_height = pixel.1 as f64 / bounds.1 as f64;
+    let (percentage_across_width, percentage_down_height) = (
+        pixel.0 as f64 / bounds.0 as f64,
+        pixel.1 as f64 / bounds.1 as f64,
+    );
     let (width, height) = (
         lower_right.re - upper_left.re,
         upper_left.im - lower_right.im,
