@@ -15,4 +15,4 @@ Jason Orendorff, 978-1-492-05259-3.
 
 Ran sequentially in around 15 seconds.
 
-[mandel1.png](./mandel1.png)
+![mandel1](https://user-images.githubusercontent.com/16626016/195470679-9956e2bd-6019-4184-b42e-d1b9d461ebef.png)
