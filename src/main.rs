@@ -1,6 +1,9 @@
 use num::Complex;
 use std::str::FromStr;
 
+// TODO(jake): Benchmarking by render approach.
+// TODO(jake): Allow to specify render approach in args.
+
 /// Parse the string `s` as a coordinate pair, like `"400x600"` or `"1.0,0.5"`.
 /// Specifically, `s` should have the form <left><sep><right>, where <sep> is the character given by
 /// the `separator` argument, and <left> and <right> are both strings that can be parsed by
@@ -85,6 +88,24 @@ fn render(
     }
 }
 
+#[allow(unused)]
+fn render_one(
+    pixel: &mut u8,
+    col: usize,
+    row: usize,
+    bounds: (usize, usize),
+    upper_left: Complex<f64>,
+    lower_right: Complex<f64>,
+) {
+    assert!(col < bounds.0 && row < bounds.1);
+
+    let c = pixel_to_point(bounds, (col, row), upper_left, lower_right);
+    *pixel = match escape_time(c, 255) {
+        Some(iterations) => 255 - iterations as u8,
+        None => 0,
+    }
+}
+
 use image::png::PNGEncoder;
 use image::ColorType;
 use std::fs::File;
@@ -165,6 +186,29 @@ fn main() {
             render(band, band_bounds, band_upper_left, band_lower_right);
         });
     }
+
+    // Running Rayon at the pixel level instead of row level...some rows are more resource intensive
+    // so does increasing granularity to pixels improve performance...or are there overhead costs
+    // associated with creating so many more tasks that the tradeoff isn't worth it?
+    // Running a few times seems to confirm that the added overhead makes this inefficient....
+    // {
+    //     // Note we need to use `collect` because Rayon makes par_iter only out of Vec/arrays.
+    //     let enumerated_pixels: Vec<(usize, &mut u8)> = pixels.iter_mut().enumerate().collect();
+
+    //     enumerated_pixels.into_par_iter().for_each(|(i, band)| {
+    //         // say bounds.0 is 3 and bounds.1 is 4
+    //         // i | (c,r)
+    //         // ----------
+    //         // 0 | (0,0)
+    //         // 1 | (1,0)
+    //         // 2 | (2,0)
+    //         // 3 | (0,1)
+    //         // 4 | (1,1)
+    //         // ...
+    //         let (col, row) = (i % bounds.0, i / bounds.0);
+    //         render_one(band, col, row, bounds, upper_left, lower_right);
+    //     });
+    // }
 
     write_image(&args[1], &pixels, bounds).expect("error writing PNG file");
 }

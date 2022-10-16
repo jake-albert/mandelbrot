@@ -1,7 +1,7 @@
 # Mandelbrot
 
-Written following the book below. Original code with extensions may be found at
- https://github.com/ProgrammingRust/mandelbrot
+Written following the book below, with some added experiments of my own.
+Original code with extensions may be found at https://github.com/ProgrammingRust/mandelbrot
 
 ## Attribution
 
