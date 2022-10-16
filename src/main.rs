@@ -102,6 +102,7 @@ fn write_image(
     Ok(())
 }
 
+use rayon::prelude::*;
 use std::env;
 
 fn main() {
@@ -121,27 +122,48 @@ fn main() {
     // To run sequentially, replace with just one call to render to over the full bounds.
     // render(&mut pixels, bounds, upper_left, lower_right);
 
-    let threads = 6;
-    // Example: 601 rows with 6 threads ... means 101 bands per thread. In worst case, final thread
-    // does `threads - 1` rows fewer than all the other threads.
-    let rows_per_band = bounds.1 / threads + 1;
-    {
-        let bands: Vec<&mut [u8]> = pixels.chunks_mut(rows_per_band * bounds.0).collect();
-        crossbeam::scope(|spawner| {
-            for (i, band) in bands.into_iter().enumerate() {
-                let top = rows_per_band * i;
-                let height = band.len() / bounds.0;
-                let band_bounds = (bounds.0, height);
-                let band_upper_left = pixel_to_point(bounds, (0, top), upper_left, lower_right);
-                let band_lower_right =
-                    pixel_to_point(bounds, (bounds.0, top + height), upper_left, lower_right);
+    // To run with simple fork and join through crossbeam, uncomment below.
+    // let threads = 12;
+    // // Example: 601 rows with 6 threads ... means 101 bands per thread. In worst case, final thread
+    // // does `threads - 1` rows fewer than all the other threads.
+    // let rows_per_band = bounds.1 / threads + 1;
+    // {
+    //     let bands: Vec<&mut [u8]> = pixels.chunks_mut(rows_per_band * bounds.0).collect();
+    //     crossbeam::scope(|spawner| {
+    //         for (i, band) in bands.into_iter().enumerate() {
+    //             let top = rows_per_band * i;
+    //             let height = band.len() / bounds.0;
+    //             let band_bounds = (bounds.0, height);
+    //             let band_upper_left = pixel_to_point(bounds, (0, top), upper_left, lower_right);
+    //             let band_lower_right =
+    //                 pixel_to_point(bounds, (bounds.0, top + height), upper_left, lower_right);
 
-                spawner.spawn(move |_| {
-                    render(band, band_bounds, band_upper_left, band_lower_right);
-                });
-            }
-        })
-        .unwrap();
+    //             spawner.spawn(move |_| {
+    //                 render(band, band_bounds, band_upper_left, band_lower_right);
+    //             });
+    //         }
+    //     })
+    //     .unwrap();
+    // }
+
+    // Scope of slicing up `pixels` into horizontal bands.
+    // Question for exploration...do we improve performance by chunking by pixel, instead of row?
+    {
+        // Note we need to use `collect` because Rayon makes par_iter only out of Vec/arrays.
+        let bands: Vec<(usize, &mut [u8])> = pixels.chunks_mut(bounds.0).enumerate().collect();
+
+        // Rayon's parallel iterator allows for:
+        // 1. Work stealing among threads to improve load per thread.
+        // 2. Safe sharing of references across threads (so no need to use `Arc` for something like
+        //    a common glossary or dictionary for all the threads to read)
+        bands.into_par_iter().for_each(|(i, band)| {
+            let top = i;
+            let band_bounds = (bounds.0, 1);
+            let band_upper_left = pixel_to_point(bounds, (0, top), upper_left, lower_right);
+            let band_lower_right =
+                pixel_to_point(bounds, (bounds.0, top + 1), upper_left, lower_right);
+            render(band, band_bounds, band_upper_left, band_lower_right);
+        });
     }
 
     write_image(&args[1], &pixels, bounds).expect("error writing PNG file");

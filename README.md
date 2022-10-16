@@ -22,7 +22,9 @@ Fork-join concurrency in which we naively divide the pixel space into (mostly) u
 is **suboptimal** because not every pixel takes uniform time to compute. (Pixels that escape radius
 2 early, and pixels that stay around until all iterations are complete.)
 
-With variable bounds for the pixels, we cannot a priori optimize how to divide up bands. Consider
-other parallelization paradigms!
+With variable bounds for the pixels, we cannot a priori optimize how to divide up bands. Using Rayon
+for work stealing leads to some improvement.
+
+TODO: Standardized benchmarking...
 
 ![mandel1](https://user-images.githubusercontent.com/16626016/195470679-9956e2bd-6019-4184-b42e-d1b9d461ebef.png)
